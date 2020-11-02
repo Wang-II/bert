@@ -659,13 +659,13 @@ def attention_layer(from_tensor,
   #   N = `num_attention_heads`
   #   H = `size_per_head`
 
-  from_tensor_2d = reshape_to_matrix(from_tensor)
+  from_tensor_2d = reshape_to_matrix(from_tensor)#-1维不变
   to_tensor_2d = reshape_to_matrix(to_tensor)
 
   # `query_layer` = [B*F, N*H]
   query_layer = tf.layers.dense(
       from_tensor_2d,
-      num_attention_heads * size_per_head,
+      num_attention_heads * size_per_head,#全连接下，-1维变  输出的维度大小，改变inputs的最后一维
       activation=query_act,
       name="query",
       kernel_initializer=create_initializer(initializer_range))
@@ -894,7 +894,7 @@ def transformer_model(input_tensor,
 
 def get_shape_list(tensor, expected_rank=None, name=None):
   """Returns a list of the shape of tensor, preferring static dimensions.
-
+    获取tensor的维度信息的list，可动态获取张量维度
   Args:
     tensor: A tf.Tensor object to find the shape of.
     expected_rank: (optional) int. The expected rank of `tensor`. If this is
