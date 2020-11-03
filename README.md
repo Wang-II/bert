@@ -2,6 +2,9 @@
 
 dense方法，指定-1维大小
 
+run_pretrain 的mask loss部分
+modeling 的attention部分
+
 
 
 
