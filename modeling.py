@@ -662,7 +662,7 @@ def attention_layer(from_tensor,
   from_tensor_2d = reshape_to_matrix(from_tensor)#-1维不变
   to_tensor_2d = reshape_to_matrix(to_tensor)
 
-  # `query_layer` = [B*F, N*H]
+  # `query_layer` = [B*F, N*H] *   [N*H,num_attention_heads * size_per_head] = [B*F,num_attention_heads * size_per_head]
   query_layer = tf.layers.dense(
       from_tensor_2d,
       num_attention_heads * size_per_head,#全连接下，-1维变  输出的维度大小，改变inputs的最后一维
@@ -698,29 +698,29 @@ def attention_layer(from_tensor,
   # Take the dot product between "query" and "key" to get the raw
   # attention scores.
   # `attention_scores` = [B, N, F, T]
-  attention_scores = tf.matmul(query_layer, key_layer, transpose_b=True)
+  attention_scores = tf.matmul(query_layer, key_layer, transpose_b=True) #matmul矩阵乘法
   attention_scores = tf.multiply(attention_scores,
-                                 1.0 / math.sqrt(float(size_per_head)))
+                                 1.0 / math.sqrt(float(size_per_head)))#矩阵各个位置对应的元素相互乘，加权
 
   if attention_mask is not None:
     # `attention_mask` = [B, 1, F, T]
-    attention_mask = tf.expand_dims(attention_mask, axis=[1])
+    attention_mask = tf.expand_dims(attention_mask, axis=[1])#在指定位置创建一维
 
     # Since attention_mask is 1.0 for positions we want to attend and 0.0 for
-    # masked positions, this operation will create a tensor which is 0.0 for
-    # positions we want to attend and -10000.0 for masked positions.
+    # masked positions, this operation will create a tensor which is 0.0 for如果attention_mask里的元素为1，则通过下面运算有（1-1）*-10000，adder就是0
+    # positions we want to attend and -10000.0 for masked positions.如果attention_mask里的元素为0，则通过下面运算有（1-0）*-10000，adder就是-10000
     adder = (1.0 - tf.cast(attention_mask, tf.float32)) * -10000.0
 
     # Since we are adding it to the raw scores before the softmax, this is
-    # effectively the same as removing these entirely.
+    # effectively the same as removing these entirely.上述操作对mask为0的地方得到的score可以认为是负无穷
     attention_scores += adder
 
-  # Normalize the attention scores to probabilities.
+  # Normalize the attention scores to probabilities.负无穷经过softmax之后为0，就相当于mask为0的位置不计算attention_score
   # `attention_probs` = [B, N, F, T]
   attention_probs = tf.nn.softmax(attention_scores)
 
   # This is actually dropping out entire tokens to attend to, which might
-  # seem a bit unusual, but is taken from the original Transformer paper.
+  # seem a bit unusual, but is taken from the original Transformer paper.对attention_probs进行dropout，这虽然有点奇怪，但是Transforme原始论文就是这么做的
   attention_probs = dropout(attention_probs, attention_probs_dropout_prob)
 
   # `value_layer` = [B, T, N, H]

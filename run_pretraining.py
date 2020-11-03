@@ -239,14 +239,21 @@ def model_fn_builder(bert_config, init_checkpoint, learning_rate,
 
 def get_masked_lm_output(bert_config, input_tensor, output_weights, positions,
                          label_ids, label_weights):
-  """Get loss and log probs for the masked LM."""
-  input_tensor = gather_indexes(input_tensor, positions)
+    # input_tensor=model.get_sequence_output()
+    # output_weights=model.get_embedding_table()
+    # positions=masked_lm_positions
+    # label_ids=masked_lm_ids
+    # label_weights=masked_lm_weights
+    # 这里的input_tensor是模型中传回的最后一层结果 [batch_size,seq_length,hidden_size]。
+    # #output_weights是词向量表 [vocab_size,embedding_size]
+  """Get loss and log probs for the masked LM."""      #获取positions位置的所有encoder（即要预测的那些位置的encoder）
+  input_tensor = gather_indexes(input_tensor, positions)#[batch_size*max_pred_pre_seq,hidden_size]
 
   with tf.variable_scope("cls/predictions"):
     # We apply one more non-linear transformation before the output layer.
     # This matrix is not used after pre-training.
     with tf.variable_scope("transform"):
-      input_tensor = tf.layers.dense(
+      input_tensor = tf.layers.dense(#传入一个全连接层 输出shape [batch_size*max_pred_pre_seq,hidden_size]
           input_tensor,
           units=bert_config.hidden_size,
           activation=modeling.get_activation(bert_config.hidden_act),
@@ -260,8 +267,8 @@ def get_masked_lm_output(bert_config, input_tensor, output_weights, positions,
         "output_bias",
         shape=[bert_config.vocab_size],
         initializer=tf.zeros_initializer())
-    logits = tf.matmul(input_tensor, output_weights, transpose_b=True)
-    logits = tf.nn.bias_add(logits, output_bias)
+    logits = tf.matmul(input_tensor, output_weights, transpose_b=True)#output_weights是embedding层 output_weights进行转置
+    logits = tf.nn.bias_add(logits, output_bias)#[batchsize*max_pred_pre_seq,vocal_size]  每个mask词在词表中的概率
     log_probs = tf.nn.log_softmax(logits, axis=-1)
 
     label_ids = tf.reshape(label_ids, [-1])
