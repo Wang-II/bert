@@ -418,10 +418,10 @@ def embedding_lookup(input_ids,
   else:
     output = tf.gather(embedding_table, flat_input_ids)
 
-  input_shape = get_shape_list(input_ids)
+  input_shape = get_shape_list(input_ids)#[batch_size, seq_length, 1]
 
-  output = tf.reshape(output,
-                      input_shape[0:-1] + [input_shape[-1] * embedding_size])
+  output = tf.reshape(output,   #  input_shape = [4,5,6]   ,input_shape[0:-1]=[4,5]
+                      input_shape[0:-1] + [input_shape[-1] * embedding_size])  #input_shape[0:-1] + [input_shape[-1] * embedding_size]为向量相加，[1,2]+[3,4] = [1,2,3,4]
   return (output, embedding_table)
 
 
@@ -502,6 +502,8 @@ def embedding_postprocessor(input_tensor,
       # for position [0, 1, 2, ..., max_position_embeddings-1], and the current
       # sequence has positions [0, 1, 2, ... seq_length-1], so we can just
       # perform a slice.
+      # full_position_embeddings已经建立了0到max_position_embeddings-1位置上的向量，
+      # 为了获取0到seq_length-1位置上的向量，只要使用slice操作即可
       position_embeddings = tf.slice(full_position_embeddings, [0, 0],
                                      [seq_length, -1])
       num_dims = len(output.shape.as_list())
@@ -663,7 +665,7 @@ def attention_layer(from_tensor,
   to_tensor_2d = reshape_to_matrix(to_tensor)
 
   # `query_layer` = [B*F, N*H] *   [N*H,num_attention_heads * size_per_head] = [B*F,num_attention_heads * size_per_head]
-  query_layer = tf.layers.dense(
+  query_layer = tf.layers.dense( #自注意力下原始tensor均一样，经过线性变化后，方便后边做自注意力的相似度计算与缩放
       from_tensor_2d,
       num_attention_heads * size_per_head,#全连接下，-1维变  输出的维度大小，改变inputs的最后一维
       activation=query_act,
@@ -697,8 +699,8 @@ def attention_layer(from_tensor,
 
   # Take the dot product between "query" and "key" to get the raw
   # attention scores.
-  # `attention_scores` = [B, N, F, T]
-  attention_scores = tf.matmul(query_layer, key_layer, transpose_b=True) #matmul矩阵乘法
+  # `attention_scores` = [B, N, F, T]          72*72  -》  9*9*8   通过分了8个头，可以将乘法的计算次数降低8倍，也就是说多头注意的复杂度是(n/head_num)^2
+  attention_scores = tf.matmul(query_layer, key_layer, transpose_b=True) #matmul矩阵乘法，**本质是每个字之间做了点积（对应位置相乘然后求和 ）相似度的计算**
   attention_scores = tf.multiply(attention_scores,
                                  1.0 / math.sqrt(float(size_per_head)))#矩阵各个位置对应的元素相互乘，加权
 
